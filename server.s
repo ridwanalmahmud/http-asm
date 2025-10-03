@@ -22,6 +22,17 @@ _start:
     mov rax, 49
     syscall
 
+    ; listen(sock_fd, 0)
+    mov rsi, 0
+    mov rax, 50
+    syscall
+
+    ; accept(sock_fd, 0, 0)
+    mov rsi, 0
+    mov rdx, 0
+    mov rax, 43
+    syscall
+
     ; exit(0)
     mov rax, 60
     mov rdi, 0
