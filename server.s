@@ -39,7 +39,9 @@ _start:
     mov rax, 50
     syscall
 
+main_loop:
     ; accept(sock_fd, 0, 0)
+    mov rdi, r8
     mov rsi, 0
     mov rdx, 0
     mov rax, 43
@@ -111,6 +113,8 @@ copy_done:
     ; close(client_fd)
     mov rax, 3
     syscall
+
+    jmp main_loop
 
     ; exit(0)
     mov rax, 60
