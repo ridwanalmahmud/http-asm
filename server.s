@@ -49,6 +49,19 @@ main_loop:
 
     mov r9, rax ; client_fd
 
+    ; fork(void)
+    mov rax, 57
+    syscall
+    cmp rax, 0
+    je child_proc
+    jmp parent_proc
+
+child_proc:
+    ; close(sock_fd) / listening socket
+    mov rdi, r8
+    mov rax, 3
+    syscall
+
     ; read(client_fd, req_buffer, 1024)
     mov rdi, r9
     mov rsi, req_buffer
@@ -114,9 +127,15 @@ copy_done:
     mov rax, 3
     syscall
 
-    jmp main_loop
-
     ; exit(0)
     mov rax, 60
     mov rdi, 0
     syscall
+
+parent_proc:
+    ; close(client_fd) / close client socket
+    mov rdi, r9
+    mov rax, 3
+    syscall
+
+    jmp main_loop
