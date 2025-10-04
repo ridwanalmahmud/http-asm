@@ -8,14 +8,69 @@ section .data
 section .data
     okresp: db `HTTP/1.0 200 OK\r\n\r\n`
     okresp_len equ $ - okresp
+    get_method: db "GET", 0
+    post_method: db "POST", 0
 
 section .bss
     req_buffer resb 1024
     filename resb 256
     file_buffer resb 4096
+    http_method resb 8
+    content_body resb 4096
+    content_length resq 1
 
 section .text
     global _start
+
+; strcmp(str1, str2)
+strcmp:
+    push rbp
+    mov rbp, rsp
+
+strcmp_loop:
+    mov al, [rdi]
+    mov bl, [rsi]
+    cmp al, bl
+    jne strcmp_nequal
+    test al, al
+    jz strcmp_equal
+    inc rdi
+    inc rsi
+    jmp strcmp_loop
+
+strcmp_nequal:
+    mov eax, 1
+    mov rsp, rbp
+    pop rbp
+    ret
+
+strcmp_equal:
+    xor eax, eax ; return 0 (equal)
+    mov rsp, rbp
+    pop rbp
+    ret
+
+; get(src, dest) -> copy filename from req_buffer to filename
+get_filename:
+    push rbp
+    mov rbp, rsp
+
+copy_filename_loop:
+    mov al, [rsi]
+    cmp al, " "
+    je copy_done
+    cmp al, 0
+    je copy_done
+    mov [rdi], al
+    inc rsi
+    inc rdi
+    jmp copy_filename_loop
+
+copy_done:
+    mov byte [rdi], 0
+    mov rsp, rbp
+    pop rbp
+    ret
 
 _start:
     ; socket(AF_INET, SOCK_STREAM, 0)
@@ -69,23 +124,35 @@ child_proc:
     mov rax, 0
     syscall
 
-    lea rsi, [req_buffer + 4]
-    mov rdi, filename
+    mov rsi, req_buffer
+    mov rdi, http_method
 
-; copy filename from req_buffer to filename
-copy_filename_loop:
+; parse http_method from request
+parse_method_loop:
     mov al, [rsi]
     cmp al, " "
-    je copy_done
+    je parse_done
     cmp al, 0
-    je copy_done
+    je parse_done
     mov [rdi], al
     inc rsi
     inc rdi
-    jmp copy_filename_loop
+    jmp parse_method_loop
 
-copy_done:
+parse_done:
     mov byte [rdi], 0
+
+    mov rdi, http_method
+    mov rsi, get_method
+    call strcmp
+    test rax, rax
+    jz handle_get
+    jne handle_post
+
+handle_get:
+    lea rsi, [req_buffer + 4]
+    mov rdi, filename
+    call get_filename
 
     ; open(filename, O_RDONLY)
     mov rdi, filename
@@ -131,6 +198,8 @@ copy_done:
     mov rax, 60
     mov rdi, 0
     syscall
+
+handle_post:
 
 parent_proc:
     ; close(client_fd) / close client socket
